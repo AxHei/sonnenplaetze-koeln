@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<title>Sonnenplätze Köln · Deutz mit echten Dachformen</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  body { margin:0; padding:0; font-family:system-ui,sans-serif; }
+  #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+  #info {
+    position:absolute; top:12px; left:12px; z-index:10;
+    background:rgba(255,255,255,0.92); padding:10px 14px; border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); max-width:300px; font-size:13px;
+  }
+  #info h1 { margin:0 0 6px 0; font-size:15px; color:#1F3A5F; }
+  #info p { margin:4px 0; color:#444; }
+  #info .stat { color:#2E5C8A; font-weight:600; }
+  #legend {
+    position:absolute; bottom:24px; left:12px; z-index:10;
+    background:rgba(255,255,255,0.92); padding:8px 12px; border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:12px;
+  }
+  .grad { display:inline-block; width:16px; height:12px; vertical-align:middle; margin-right:6px; border:1px solid #888; }
+</style>
+</head>
+<body>
+<div id="info">
+  <h1>Köln-Deutz · LoD2 mit Dachformen</h1>
+  <p><span class="stat" id="status">3D-Modell wird geladen…</span></p>
+  <p style="font-size:11px;color:#888;">Maus ziehen = drehen / kippen. Mausrad = zoomen.</p>
+</div>
+<div id="legend">
+  <div><span class="grad" style="background:#f5fae8;"></span> 0–10 m</div>
+  <div><span class="grad" style="background:#c4dc96;"></span> 10–25 m</div>
+  <div><span class="grad" style="background:#8cb45a;"></span> 25–50 m</div>
+  <div><span class="grad" style="background:#5a8c32;"></span> &gt; 50 m</div>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const meta = await fetch('deutz_meta.json').then(r=>r.json());
+const ANCHOR = meta.anchor; // {lon,lat,z}
+
+const map = new maplibregl.Map({
+  container:'map',
+  style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  center:[ANCHOR.lon, ANCHOR.lat],
+  zoom:15.5, pitch:60, bearing:-25, maxPitch:80, antialias:true,
+});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
+
+// Custom three.js Layer für MapLibre
+const customLayer = {
+  id: 'lod2-mesh',
+  type: 'custom',
+  renderingMode: '3d',
+  onAdd(map, gl) {
+    this.map = map;
+    this.camera = new THREE.Camera();
+    this.scene = new THREE.Scene();
+
+    // Helle, weiche Beleuchtung — viel Ambient, dezenter Direktionallicht-Akzent
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.4);
+    dir.position.set(0.3, 1.0, 0.6).normalize();
+    this.scene.add(dir);
+
+    // Modell laden
+    const loader = new GLTFLoader();
+    loader.load('deutz.glb', (gltf) => {
+      const root = gltf.scene;
+      // Material: Vertex-Color, MeshBasic = ohne Schattierung -> Farben bleiben unverfälscht
+      root.traverse(o => {
+        if (o.isMesh) {
+          o.material = new THREE.MeshLambertMaterial({
+            vertexColors: true,
+            side: THREE.DoubleSide,
+            emissive: 0x222222,   // bisschen Eigenlicht, damit Schattenseiten nicht ganz schwarz werden
+          });
+        }
+      });
+      this.scene.add(root);
+      document.getElementById('status').textContent =
+        meta.buildings + ' Gebäude · ' + meta.triangles.toLocaleString('de-DE') + ' Dreiecke';
+    }, undefined, (err) => {
+      console.error('GLB-Ladefehler:', err);
+      document.getElementById('status').textContent = 'Fehler beim Laden';
+    });
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: map.getCanvas(),
+      context: gl,
+      antialias: true,
+    });
+    this.renderer.autoClear = false;
+  },
+  render(gl, matrix) {
+    // MapLibre liefert eine 4x4-Matrix in Web-Mercator-Koordinaten.
+    // Wir müssen den Anker (lon/lat) auf Mercator-Welt-Koordinaten umrechnen
+    // und das Modell entsprechend platzieren + skalieren.
+    const merc = maplibregl.MercatorCoordinate.fromLngLat(
+      [ANCHOR.lon, ANCHOR.lat], 0
+    );
+    const scale = merc.meterInMercatorCoordinateUnits();
+
+    const m = new THREE.Matrix4().fromArray(matrix);
+    const t = new THREE.Matrix4().makeTranslation(merc.x, merc.y, merc.z);
+    const s = new THREE.Matrix4().makeScale(scale, -scale, scale);
+    // Three.js ist y-oben; MapLibre ist y-süd. Das Modell ist bereits
+    // mit y=Höhe und z=−lat exportiert, daher passt diese Skalenmatrix:
+    const r = new THREE.Matrix4().makeRotationX(Math.PI / 2);
+    const model = t.multiply(s).multiply(r);
+    this.camera.projectionMatrix = m.multiply(model);
+    this.renderer.resetState();
+    this.renderer.render(this.scene, this.camera);
+    this.map.triggerRepaint();
+  }
+};
+
+map.on('style.load', () => {
+  map.addLayer(customLayer);
+});
+</script>
+</body>
+</html>
