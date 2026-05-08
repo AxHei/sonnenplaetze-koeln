@@ -2,61 +2,85 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<title>Sonnenplätze Köln · Deutz mit Außengastronomie</title>
+<title>Sonnenplätze Köln · Deutz · Sonne / Schatten zur Uhrzeit</title>
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
   body { margin:0; padding:0; font-family:system-ui,sans-serif; }
-  #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+  #map { position:absolute; top:0; bottom:90px; left:0; right:0; }
   #info {
-    position:absolute; top:12px; left:12px; z-index:10;
-    background:rgba(255,255,255,0.94); padding:10px 14px; border-radius:8px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.15); max-width:300px; font-size:13px;
+    position:absolute; top:10px; left:10px; z-index:10;
+    background:rgba(255,255,255,0.94); padding:8px 12px; border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); max-width:300px; font-size:12px;
   }
-  #info h1 { margin:0 0 6px 0; font-size:15px; color:#1F3A5F; }
-  #info p { margin:4px 0; color:#444; }
+  #info h1 { margin:0 0 4px 0; font-size:14px; color:#1F3A5F; }
+  #info p { margin:2px 0; color:#444; }
   #info .stat { color:#2E5C8A; font-weight:600; }
   #legend {
-    position:absolute; bottom:24px; left:12px; z-index:10;
-    background:rgba(255,255,255,0.94); padding:10px 12px; border-radius:8px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:12px;
+    position:absolute; bottom:100px; left:10px; z-index:10;
+    background:rgba(255,255,255,0.94); padding:8px 10px; border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:11px;
   }
-  #legend .row { display:flex; align-items:center; margin:3px 0; }
-  #legend .grad { display:inline-block; width:16px; height:12px; margin-right:6px; border:1px solid #888; }
-  #legend .dot { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:6px; border:2px solid #fff; box-shadow:0 0 0 1px #999; }
-  #legend hr { margin:8px 0; border:none; border-top:1px solid #ddd; }
+  #legend .row { display:flex; align-items:center; margin:2px 0; }
+  #legend .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:5px; border:1.5px solid #fff; box-shadow:0 0 0 1px #999; }
+  #control {
+    position:absolute; bottom:0; left:0; right:0; height:90px; z-index:11;
+    background:rgba(255,255,255,0.97); border-top:1px solid #ddd;
+    padding:8px 14px; box-sizing:border-box;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  #control .row1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  #control label { font-size:12px; color:#555; }
+  #control input[type=date], #control input[type=time] {
+    padding:4px 6px; border:1px solid #ccc; border-radius:5px; font-size:14px;
+  }
+  #control button {
+    padding:5px 10px; border:1px solid #2E5C8A; background:#2E5C8A; color:#fff;
+    border-radius:5px; font-size:12px; cursor:pointer;
+  }
+  #control button.ghost { background:#fff; color:#2E5C8A; }
+  #control .row2 { display:flex; align-items:center; gap:10px; }
+  #control input[type=range] { flex:1; }
+  #control .sunbar { font-size:11px; color:#888; min-width:160px; text-align:right; }
   .maplibregl-popup-content { font-size:13px; padding:10px 12px; }
   .maplibregl-popup-content h3 { margin:0 0 4px 0; font-size:14px; color:#1F3A5F; }
   .maplibregl-popup-content .meta { font-size:11px; color:#666; }
-  .maplibregl-popup-content .badge {
-    display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:600;
-    margin-right:4px; vertical-align:middle;
-  }
+  .badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:600; margin-right:4px; vertical-align:middle; }
+  .badge.sonne { background:#f0a500; color:#fff; }
+  .badge.schatten { background:#666; color:#fff; }
   .badge.bestaetigt { background:#3a7d2c; color:#fff; }
   .badge.vermutet { background:#e8e1c2; color:#695c1f; }
 </style>
 </head>
 <body>
 <div id="info">
-  <h1>Köln-Deutz · Außengastro · 3D</h1>
-  <p><span class="stat" id="status">3D-Modell wird geladen…</span></p>
-  <p><span class="stat" id="lokal-status">Lokale werden geladen…</span></p>
-  <p style="font-size:11px;color:#888;">Maus ziehen = drehen / kippen. Mausrad = zoomen. Klick auf Punkt = Details.</p>
+  <h1>Sonnenplätze Köln · Deutz</h1>
+  <p><span class="stat" id="status">…</span></p>
+  <p style="font-size:10px;color:#888;margin-top:4px;">Maus = drehen / zoomen. Klick auf Punkt = Details.</p>
 </div>
 <div id="legend">
-  <div style="font-weight:600;margin-bottom:4px;">Gebäudehöhe</div>
-  <div class="row"><span class="grad" style="background:#f5fae8;"></span> 0–10 m</div>
-  <div class="row"><span class="grad" style="background:#c4dc96;"></span> 10–25 m</div>
-  <div class="row"><span class="grad" style="background:#8cb45a;"></span> 25–50 m</div>
-  <div class="row"><span class="grad" style="background:#5a8c32;"></span> &gt; 50 m</div>
-  <hr/>
-  <div style="font-weight:600;margin-bottom:4px;">Außengastronomie</div>
-  <div class="row"><span class="dot" style="background:#3a7d2c;width:14px;height:14px;"></span> Außenbereich bestätigt</div>
-  <div class="row"><span class="dot" style="background:#e8e1c2;width:10px;height:10px;"></span> Außenbereich vermutet</div>
+  <div class="row"><span class="dot" style="background:#f0a500;"></span> Sonne</div>
+  <div class="row"><span class="dot" style="background:#666;"></span> Schatten</div>
+  <div class="row" style="margin-top:4px;font-size:10px;color:#888;">Kreisrand: dick = bestätigt, dünn = vermutet</div>
+</div>
+<div id="control">
+  <div class="row1">
+    <label>Datum: <input type="date" id="date"></label>
+    <label>Uhrzeit: <input type="time" id="time" step="600"></label>
+    <button id="now">Jetzt</button>
+    <button id="play" class="ghost">▶ Tag abspielen</button>
+    <span class="sunbar" id="sunbar">Sonne: …</span>
+  </div>
+  <div class="row2">
+    <span style="font-size:11px;color:#888;">06</span>
+    <input type="range" id="hourSlider" min="300" max="1320" step="10" value="900">
+    <span style="font-size:11px;color:#888;">22</span>
+  </div>
 </div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -69,19 +93,112 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const meta = await fetch('deutz_meta.json').then(r=>r.json());
+// ---------- Daten laden ----------
+const [meta, lokaleFC, baeumeFC] = await Promise.all([
+  fetch('deutz_meta.json').then(r=>r.json()),
+  fetch('deutz_lokale.geojson').then(r=>r.json()),
+  fetch('deutz_baeume.geojson').then(r=>r.json()),
+]);
 const ANCHOR = meta.anchor;
 
+// ---------- Hilfsfunktionen Geo ----------
+const M_PER_DEG_LAT = 111320;
+const M_PER_DEG_LON = 111320 * Math.cos(ANCHOR.lat * Math.PI / 180);
+function lonlatToM(lon, lat) {
+  return { x: (lon - ANCHOR.lon) * M_PER_DEG_LON, y: (lat - ANCHOR.lat) * M_PER_DEG_LAT };
+}
+
+// ---------- Gebäude-Bounding-Boxes vorbereiten (für Schattentest) ----------
+// Wir laden das GLB nur fürs Rendern. Für den Schattentest ziehen wir die Footprints
+// pro Gebäude aus deutz_buildings.geojson nach (das alte LoD1-File reicht völlig).
+let buildings = [];
+try {
+  const bFc = await fetch('deutz_buildings.geojson').then(r => r.ok ? r.json() : null);
+  if (bFc) {
+    for (const f of bFc.features) {
+      const ring = f.geometry.coordinates[0];
+      // Bounding-Box in Meter um Anker
+      let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+      for (const [lon,lat] of ring) {
+        const m = lonlatToM(lon, lat);
+        if (m.x < minX) minX = m.x;
+        if (m.y < minY) minY = m.y;
+        if (m.x > maxX) maxX = m.x;
+        if (m.y > maxY) maxY = m.y;
+      }
+      buildings.push({
+        minX, minY, maxX, maxY,
+        h: f.properties.h || 10,
+      });
+    }
+  }
+} catch(e) { console.warn('Gebäude-Footprints nicht geladen', e); }
+
+// ---------- Bäume vorbereiten (für Schattentest) ----------
+const trees = baeumeFC.features.map(f => {
+  const m = lonlatToM(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+  return { x: m.x, y: m.y, h: f.properties.h, r: f.properties.k / 2 };
+});
+
+// ---------- Lokale vorbereiten ----------
+for (const f of lokaleFC.features) {
+  const m = lonlatToM(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+  f._mx = m.x; f._my = m.y;
+}
+
+// ---------- Schattentest ----------
+// Strahl vom Lokal (am Boden) Richtung Sonne. Trifft er ein Gebäude oder einen Baum,
+// dessen Höhe größer ist als der Strahl an der Stelle, dann Schatten.
+function isInShadow(lokal, sunAz, sunAlt) {
+  if (sunAlt <= 0.05) return true; // Sonne unter dem Horizont
+  // Richtungsvektor: Azimut wird in OSM/SunCalc von Süd gemessen, im Uhrzeigersinn (+ = West).
+  // In unserer xy-Koordinate ist x=Ost, y=Nord.
+  // Sonne-Richtung am Boden:
+  //   az_geo = 180° - sunAz_southCW * 180/PI  ->  einfacher: dx=sin(az+pi), dy=cos(az+pi)
+  // SunCalc: azimuth in radians, measured from South to West (so south=0, west=pi/2, north=pi, east=-pi/2)
+  const dx = Math.sin(sunAz + Math.PI);  // east-Komponente
+  const dy = Math.cos(sunAz + Math.PI);  // north-Komponente
+  const tanAlt = Math.tan(sunAlt);
+  const px = lokal._mx, py = lokal._my;
+
+  // Wir laufen den Strahl in Schritten von 5 m bis maximal 200 m (genug für Hochhausschatten in Deutz)
+  const STEP = 4;
+  const MAX = 250;
+  for (let d = STEP; d < MAX; d += STEP) {
+    const sx = px + dx * d;
+    const sy = py + dy * d;
+    const sz = d * tanAlt; // Höhe des Strahls über Boden
+    // Gebäude-Test
+    for (const b of buildings) {
+      if (sx >= b.minX && sx <= b.maxX && sy >= b.minY && sy <= b.maxY) {
+        if (sz < b.h) return true;
+      }
+    }
+    // Bäume: Krone als grobe Kugel approximieren — Treffer wenn dist < r und sz < (h - 0.5*kronenoben)
+    // Vereinfachung: wenn Strahl näher als 0.7*r am Baum-Mittelpunkt vorbeikommt UND auf Höhe der Krone ist
+    for (const t of trees) {
+      const ddx = sx - t.x, ddy = sy - t.y;
+      const dist2 = ddx*ddx + ddy*ddy;
+      if (dist2 < (t.r*0.7)*(t.r*0.7)) {
+        // Krone ist von ca. 0.4*h bis h
+        if (sz > 0.4 * t.h && sz < t.h) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// ---------- MapLibre ----------
 const map = new maplibregl.Map({
   container:'map',
   style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
   center:[ANCHOR.lon, ANCHOR.lat],
-  zoom:15.5, pitch:60, bearing:-25, maxPitch:80, antialias:true,
+  zoom:15.5, pitch:55, bearing:-25, maxPitch:80, antialias:true,
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
 
-// ===== three.js-Custom-Layer für 3D-Gebäude =====
-const customLayer = {
+// ---------- three.js LoD2-Layer (Gebäude) ----------
+const buildingsLayer = {
   id: 'lod2-mesh',
   type: 'custom',
   renderingMode: '3d',
@@ -93,22 +210,49 @@ const customLayer = {
     const dir = new THREE.DirectionalLight(0xffffff, 0.4);
     dir.position.set(0.3, 1.0, 0.6).normalize();
     this.scene.add(dir);
-    const loader = new GLTFLoader();
-    loader.load('deutz.glb', (gltf) => {
+
+    // Gebäude
+    new GLTFLoader().load('deutz.glb', (gltf) => {
       gltf.scene.traverse(o => {
         if (o.isMesh) {
           o.material = new THREE.MeshLambertMaterial({
-            vertexColors: true, side: THREE.DoubleSide, emissive: 0x222222,
+            vertexColors:true, side:THREE.DoubleSide, emissive:0x222222
           });
         }
       });
       this.scene.add(gltf.scene);
+
+      // Bäume (vereinfacht: Stamm als Zylinder, Krone als Kugel)
+      const trunkMat = new THREE.MeshLambertMaterial({ color: 0x6b4a2b });
+      const crownMat = new THREE.MeshLambertMaterial({
+        color: 0x6aa84f, transparent: true, opacity: 0.85
+      });
+      const treeGroup = new THREE.Group();
+      for (const t of trees) {
+        const stammH = Math.max(1.5, t.h * 0.4);
+        const kronenH = t.h - stammH;
+        const kronenR = Math.min(t.r, t.h*0.45); // sicher gegen Datenfehler
+        const stamm = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.25, 0.3, stammH, 6),
+          trunkMat
+        );
+        stamm.position.set(t.x, stammH/2, -t.y);
+        treeGroup.add(stamm);
+        const krone = new THREE.Mesh(
+          new THREE.SphereGeometry(kronenR, 8, 6),
+          crownMat
+        );
+        krone.position.set(t.x, stammH + kronenH/2, -t.y);
+        krone.scale.y = kronenH / (kronenR*2); // ovaler
+        treeGroup.add(krone);
+      }
+      this.scene.add(treeGroup);
+
       document.getElementById('status').textContent =
-        meta.buildings + ' Gebäude · ' + meta.triangles.toLocaleString('de-DE') + ' Dreiecke';
-    }, undefined, (err) => {
-      console.error('GLB-Ladefehler:', err);
-      document.getElementById('status').textContent = 'Fehler beim Laden';
+        meta.buildings + ' Gebäude · ' + trees.length + ' Bäume · ' + lokaleFC.features.length + ' Lokale';
+      updateLokale();
     });
+
     this.renderer = new THREE.WebGLRenderer({
       canvas: map.getCanvas(), context: gl, antialias: true,
     });
@@ -128,76 +272,137 @@ const customLayer = {
   }
 };
 
+// ---------- Lokale-Layer ----------
+function buildLokaleSource() {
+  return { type:'geojson', data: lokaleFC };
+}
+
 map.on('style.load', () => {
-  map.addLayer(customLayer);
+  map.addLayer(buildingsLayer);
 
-  // ===== Lokale-Layer =====
-  fetch('deutz_lokale.geojson')
-    .then(r => r.json())
-    .then(data => {
-      map.addSource('lokale', { type:'geojson', data });
-
-      // Außenring (heller "Halo" für Sichtbarkeit auf grünem Untergrund)
-      map.addLayer({
-        id: 'lokale-halo',
-        type: 'circle',
-        source: 'lokale',
-        paint: {
-          'circle-radius': ['case', ['get','bestaetigt'], 11, 8],
-          'circle-color': '#ffffff',
-          'circle-opacity': 0.85,
-        }
-      });
-
-      // Innerer Punkt — bestätigt (groß, sattgrün) vs. vermutet (klein, beige)
-      map.addLayer({
-        id: 'lokale-punkt',
-        type: 'circle',
-        source: 'lokale',
-        paint: {
-          'circle-radius': ['case', ['get','bestaetigt'], 8, 5],
-          'circle-color': ['case', ['get','bestaetigt'], '#3a7d2c', '#e8e1c2'],
-          'circle-stroke-color': ['case', ['get','bestaetigt'], '#1f4a18', '#a89a5e'],
-          'circle-stroke-width': 1.5,
-        }
-      });
-
-      const bestaetigt = data.features.filter(f=>f.properties.bestaetigt).length;
-      document.getElementById('lokal-status').textContent =
-        data.features.length + ' Lokale (' + bestaetigt + ' bestätigt, ' + (data.features.length-bestaetigt) + ' vermutet)';
-
-      // Klick auf einen Punkt -> Popup
-      map.on('click', 'lokale-punkt', (e) => showPopup(e));
-      map.on('click', 'lokale-halo', (e) => showPopup(e));
-      map.on('mouseenter', 'lokale-punkt', () => map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', 'lokale-punkt', () => map.getCanvas().style.cursor = '');
-    })
-    .catch(err => {
-      console.error('Lokale-Ladefehler:', err);
-      document.getElementById('lokal-status').textContent = 'Lokale konnten nicht geladen werden';
-    });
+  map.addSource('lokale', buildLokaleSource());
+  map.addLayer({
+    id: 'lokale-halo',
+    type: 'circle',
+    source: 'lokale',
+    paint: {
+      'circle-radius': ['case', ['get','bestaetigt'], 11, 8],
+      'circle-color': '#ffffff',
+      'circle-opacity': 0.9,
+    }
+  });
+  map.addLayer({
+    id: 'lokale-punkt',
+    type: 'circle',
+    source: 'lokale',
+    paint: {
+      'circle-radius': ['case', ['get','bestaetigt'], 8, 5],
+      'circle-color': ['case', ['get','imSchatten'], '#666666', '#f0a500'],
+      'circle-stroke-color': ['case', ['get','bestaetigt'], '#1f3a5f', '#a89a5e'],
+      'circle-stroke-width': ['case', ['get','bestaetigt'], 2, 1],
+    }
+  });
+  map.on('click', 'lokale-punkt', showPopup);
+  map.on('click', 'lokale-halo', showPopup);
+  map.on('mouseenter', 'lokale-punkt', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'lokale-punkt', () => map.getCanvas().style.cursor = '');
 });
 
+// ---------- Popup ----------
 function showPopup(e) {
   const f = e.features[0];
   const p = f.properties;
-  const badge = p.bestaetigt
+  const sun = p.imSchatten === 'true' || p.imSchatten === true
+    ? '<span class="badge schatten">Schatten</span>'
+    : '<span class="badge sonne">Sonne</span>';
+  const conf = p.bestaetigt === 'true' || p.bestaetigt === true
     ? '<span class="badge bestaetigt">Außenbereich bestätigt</span>'
     : '<span class="badge vermutet">Außenbereich vermutet</span>';
-  let html = '<h3>'+escapeHtml(p.name)+'</h3>'+
-             '<div>'+badge+escapeHtml(p.kategorie)+'</div>';
-  if (p.adresse) html += '<div class="meta">'+escapeHtml(p.adresse)+'</div>';
-  if (p.website) html += '<div class="meta"><a href="'+p.website+'" target="_blank" rel="noopener">Webseite</a></div>';
+  let html = '<h3>'+esc(p.name)+'</h3>'+
+             '<div>'+sun+conf+'</div>'+
+             '<div class="meta">'+esc(p.kategorie)+'</div>';
+  if (p.adresse) html += '<div class="meta">'+esc(p.adresse)+'</div>';
+  if (p.website && p.website !== 'null') html += '<div class="meta"><a href="'+p.website+'" target="_blank" rel="noopener">Webseite</a></div>';
   new maplibregl.Popup({offset:14, closeButton:true})
-    .setLngLat(f.geometry.coordinates)
-    .setHTML(html)
-    .addTo(map);
+    .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
+}
+function esc(s) { if (!s||s==='null') return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+// ---------- Zeit + Sonne ----------
+let currentDate;
+function setNow() {
+  const d = new Date();
+  document.getElementById('date').value = d.toISOString().slice(0,10);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(Math.floor(d.getMinutes()/10)*10).padStart(2,'0');
+  document.getElementById('time').value = hh+':'+mm;
+  document.getElementById('hourSlider').value = d.getHours()*60 + d.getMinutes();
+  rebuildDate();
+}
+function rebuildDate() {
+  const dateStr = document.getElementById('date').value;
+  const timeStr = document.getElementById('time').value || '15:00';
+  currentDate = new Date(dateStr + 'T' + timeStr + ':00');
+  updateLokale();
+}
+function syncSliderToTime() {
+  const t = document.getElementById('time').value;
+  if (!t) return;
+  const [h,m] = t.split(':').map(Number);
+  document.getElementById('hourSlider').value = h*60+m;
+}
+function syncTimeToSlider() {
+  const v = parseInt(document.getElementById('hourSlider').value);
+  const h = Math.floor(v/60), m = v%60;
+  document.getElementById('time').value =
+    String(h).padStart(2,'0')+':'+String(Math.floor(m/10)*10).padStart(2,'0');
+  rebuildDate();
+}
+document.getElementById('date').addEventListener('change', rebuildDate);
+document.getElementById('time').addEventListener('change', () => { syncSliderToTime(); rebuildDate(); });
+document.getElementById('hourSlider').addEventListener('input', syncTimeToSlider);
+document.getElementById('now').addEventListener('click', setNow);
+
+// "Tag abspielen" — Slider von 6 bis 22 Uhr animieren
+let playInterval = null;
+document.getElementById('play').addEventListener('click', () => {
+  const btn = document.getElementById('play');
+  if (playInterval) {
+    clearInterval(playInterval); playInterval = null; btn.textContent = '▶ Tag abspielen';
+    return;
+  }
+  btn.textContent = '⏸ Stopp';
+  let v = parseInt(document.getElementById('hourSlider').value);
+  playInterval = setInterval(() => {
+    v += 20; // 20 Minuten pro Schritt
+    if (v > 1320) v = 360;
+    document.getElementById('hourSlider').value = v;
+    syncTimeToSlider();
+  }, 250);
+});
+
+function updateLokale() {
+  if (!currentDate) return;
+  const sun = SunCalc.getPosition(currentDate, ANCHOR.lat, ANCHOR.lon);
+  const azDeg = ((sun.azimuth * 180/Math.PI) + 180 + 360) % 360;
+  const altDeg = sun.altitude * 180/Math.PI;
+  const sunbar = document.getElementById('sunbar');
+  if (altDeg <= 0) {
+    sunbar.textContent = '🌙 Sonne unter Horizont';
+  } else {
+    sunbar.textContent = '☀ Az ' + azDeg.toFixed(0) + '° / Höhe ' + altDeg.toFixed(0) + '°';
+  }
+  // Pro Lokal Schatten testen und property setzen
+  for (const f of lokaleFC.features) {
+    f.properties.imSchatten = isInShadow(f, sun.azimuth, sun.altitude);
+  }
+  if (map.getSource('lokale')) {
+    map.getSource('lokale').setData(lokaleFC);
+  }
 }
 
-function escapeHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-}
+// ---------- Start ----------
+setNow();
 </script>
 </body>
 </html>
