@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<title>Sonnenplätze Köln · Deutz mit echten Dachformen</title>
+<title>Sonnenplätze Köln · Deutz mit Außengastronomie</title>
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
@@ -10,7 +10,7 @@
   #map { position:absolute; top:0; bottom:0; left:0; right:0; }
   #info {
     position:absolute; top:12px; left:12px; z-index:10;
-    background:rgba(255,255,255,0.92); padding:10px 14px; border-radius:8px;
+    background:rgba(255,255,255,0.94); padding:10px 14px; border-radius:8px;
     box-shadow:0 2px 8px rgba(0,0,0,0.15); max-width:300px; font-size:13px;
   }
   #info h1 { margin:0 0 6px 0; font-size:15px; color:#1F3A5F; }
@@ -18,23 +18,41 @@
   #info .stat { color:#2E5C8A; font-weight:600; }
   #legend {
     position:absolute; bottom:24px; left:12px; z-index:10;
-    background:rgba(255,255,255,0.92); padding:8px 12px; border-radius:8px;
+    background:rgba(255,255,255,0.94); padding:10px 12px; border-radius:8px;
     box-shadow:0 2px 8px rgba(0,0,0,0.15); font-size:12px;
   }
-  .grad { display:inline-block; width:16px; height:12px; vertical-align:middle; margin-right:6px; border:1px solid #888; }
+  #legend .row { display:flex; align-items:center; margin:3px 0; }
+  #legend .grad { display:inline-block; width:16px; height:12px; margin-right:6px; border:1px solid #888; }
+  #legend .dot { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:6px; border:2px solid #fff; box-shadow:0 0 0 1px #999; }
+  #legend hr { margin:8px 0; border:none; border-top:1px solid #ddd; }
+  .maplibregl-popup-content { font-size:13px; padding:10px 12px; }
+  .maplibregl-popup-content h3 { margin:0 0 4px 0; font-size:14px; color:#1F3A5F; }
+  .maplibregl-popup-content .meta { font-size:11px; color:#666; }
+  .maplibregl-popup-content .badge {
+    display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:600;
+    margin-right:4px; vertical-align:middle;
+  }
+  .badge.bestaetigt { background:#3a7d2c; color:#fff; }
+  .badge.vermutet { background:#e8e1c2; color:#695c1f; }
 </style>
 </head>
 <body>
 <div id="info">
-  <h1>Köln-Deutz · LoD2 mit Dachformen</h1>
+  <h1>Köln-Deutz · Außengastro · 3D</h1>
   <p><span class="stat" id="status">3D-Modell wird geladen…</span></p>
-  <p style="font-size:11px;color:#888;">Maus ziehen = drehen / kippen. Mausrad = zoomen.</p>
+  <p><span class="stat" id="lokal-status">Lokale werden geladen…</span></p>
+  <p style="font-size:11px;color:#888;">Maus ziehen = drehen / kippen. Mausrad = zoomen. Klick auf Punkt = Details.</p>
 </div>
 <div id="legend">
-  <div><span class="grad" style="background:#f5fae8;"></span> 0–10 m</div>
-  <div><span class="grad" style="background:#c4dc96;"></span> 10–25 m</div>
-  <div><span class="grad" style="background:#8cb45a;"></span> 25–50 m</div>
-  <div><span class="grad" style="background:#5a8c32;"></span> &gt; 50 m</div>
+  <div style="font-weight:600;margin-bottom:4px;">Gebäudehöhe</div>
+  <div class="row"><span class="grad" style="background:#f5fae8;"></span> 0–10 m</div>
+  <div class="row"><span class="grad" style="background:#c4dc96;"></span> 10–25 m</div>
+  <div class="row"><span class="grad" style="background:#8cb45a;"></span> 25–50 m</div>
+  <div class="row"><span class="grad" style="background:#5a8c32;"></span> &gt; 50 m</div>
+  <hr/>
+  <div style="font-weight:600;margin-bottom:4px;">Außengastronomie</div>
+  <div class="row"><span class="dot" style="background:#3a7d2c;width:14px;height:14px;"></span> Außenbereich bestätigt</div>
+  <div class="row"><span class="dot" style="background:#e8e1c2;width:10px;height:10px;"></span> Außenbereich vermutet</div>
 </div>
 <div id="map"></div>
 
@@ -52,7 +70,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const meta = await fetch('deutz_meta.json').then(r=>r.json());
-const ANCHOR = meta.anchor; // {lon,lat,z}
+const ANCHOR = meta.anchor;
 
 const map = new maplibregl.Map({
   container:'map',
@@ -62,7 +80,7 @@ const map = new maplibregl.Map({
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
 
-// Custom three.js Layer für MapLibre
+// ===== three.js-Custom-Layer für 3D-Gebäude =====
 const customLayer = {
   id: 'lod2-mesh',
   type: 'custom',
@@ -71,59 +89,39 @@ const customLayer = {
     this.map = map;
     this.camera = new THREE.Camera();
     this.scene = new THREE.Scene();
-
-    // Helle, weiche Beleuchtung — viel Ambient, dezenter Direktionallicht-Akzent
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
     const dir = new THREE.DirectionalLight(0xffffff, 0.4);
     dir.position.set(0.3, 1.0, 0.6).normalize();
     this.scene.add(dir);
-
-    // Modell laden
     const loader = new GLTFLoader();
     loader.load('deutz.glb', (gltf) => {
-      const root = gltf.scene;
-      // Material: Vertex-Color, MeshBasic = ohne Schattierung -> Farben bleiben unverfälscht
-      root.traverse(o => {
+      gltf.scene.traverse(o => {
         if (o.isMesh) {
           o.material = new THREE.MeshLambertMaterial({
-            vertexColors: true,
-            side: THREE.DoubleSide,
-            emissive: 0x222222,   // bisschen Eigenlicht, damit Schattenseiten nicht ganz schwarz werden
+            vertexColors: true, side: THREE.DoubleSide, emissive: 0x222222,
           });
         }
       });
-      this.scene.add(root);
+      this.scene.add(gltf.scene);
       document.getElementById('status').textContent =
         meta.buildings + ' Gebäude · ' + meta.triangles.toLocaleString('de-DE') + ' Dreiecke';
     }, undefined, (err) => {
       console.error('GLB-Ladefehler:', err);
       document.getElementById('status').textContent = 'Fehler beim Laden';
     });
-
     this.renderer = new THREE.WebGLRenderer({
-      canvas: map.getCanvas(),
-      context: gl,
-      antialias: true,
+      canvas: map.getCanvas(), context: gl, antialias: true,
     });
     this.renderer.autoClear = false;
   },
   render(gl, matrix) {
-    // MapLibre liefert eine 4x4-Matrix in Web-Mercator-Koordinaten.
-    // Wir müssen den Anker (lon/lat) auf Mercator-Welt-Koordinaten umrechnen
-    // und das Modell entsprechend platzieren + skalieren.
-    const merc = maplibregl.MercatorCoordinate.fromLngLat(
-      [ANCHOR.lon, ANCHOR.lat], 0
-    );
+    const merc = maplibregl.MercatorCoordinate.fromLngLat([ANCHOR.lon, ANCHOR.lat], 0);
     const scale = merc.meterInMercatorCoordinateUnits();
-
     const m = new THREE.Matrix4().fromArray(matrix);
     const t = new THREE.Matrix4().makeTranslation(merc.x, merc.y, merc.z);
     const s = new THREE.Matrix4().makeScale(scale, -scale, scale);
-    // Three.js ist y-oben; MapLibre ist y-süd. Das Modell ist bereits
-    // mit y=Höhe und z=−lat exportiert, daher passt diese Skalenmatrix:
     const r = new THREE.Matrix4().makeRotationX(Math.PI / 2);
-    const model = t.multiply(s).multiply(r);
-    this.camera.projectionMatrix = m.multiply(model);
+    this.camera.projectionMatrix = m.multiply(t.multiply(s).multiply(r));
     this.renderer.resetState();
     this.renderer.render(this.scene, this.camera);
     this.map.triggerRepaint();
@@ -132,7 +130,74 @@ const customLayer = {
 
 map.on('style.load', () => {
   map.addLayer(customLayer);
+
+  // ===== Lokale-Layer =====
+  fetch('deutz_lokale.geojson')
+    .then(r => r.json())
+    .then(data => {
+      map.addSource('lokale', { type:'geojson', data });
+
+      // Außenring (heller "Halo" für Sichtbarkeit auf grünem Untergrund)
+      map.addLayer({
+        id: 'lokale-halo',
+        type: 'circle',
+        source: 'lokale',
+        paint: {
+          'circle-radius': ['case', ['get','bestaetigt'], 11, 8],
+          'circle-color': '#ffffff',
+          'circle-opacity': 0.85,
+        }
+      });
+
+      // Innerer Punkt — bestätigt (groß, sattgrün) vs. vermutet (klein, beige)
+      map.addLayer({
+        id: 'lokale-punkt',
+        type: 'circle',
+        source: 'lokale',
+        paint: {
+          'circle-radius': ['case', ['get','bestaetigt'], 8, 5],
+          'circle-color': ['case', ['get','bestaetigt'], '#3a7d2c', '#e8e1c2'],
+          'circle-stroke-color': ['case', ['get','bestaetigt'], '#1f4a18', '#a89a5e'],
+          'circle-stroke-width': 1.5,
+        }
+      });
+
+      const bestaetigt = data.features.filter(f=>f.properties.bestaetigt).length;
+      document.getElementById('lokal-status').textContent =
+        data.features.length + ' Lokale (' + bestaetigt + ' bestätigt, ' + (data.features.length-bestaetigt) + ' vermutet)';
+
+      // Klick auf einen Punkt -> Popup
+      map.on('click', 'lokale-punkt', (e) => showPopup(e));
+      map.on('click', 'lokale-halo', (e) => showPopup(e));
+      map.on('mouseenter', 'lokale-punkt', () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'lokale-punkt', () => map.getCanvas().style.cursor = '');
+    })
+    .catch(err => {
+      console.error('Lokale-Ladefehler:', err);
+      document.getElementById('lokal-status').textContent = 'Lokale konnten nicht geladen werden';
+    });
 });
+
+function showPopup(e) {
+  const f = e.features[0];
+  const p = f.properties;
+  const badge = p.bestaetigt
+    ? '<span class="badge bestaetigt">Außenbereich bestätigt</span>'
+    : '<span class="badge vermutet">Außenbereich vermutet</span>';
+  let html = '<h3>'+escapeHtml(p.name)+'</h3>'+
+             '<div>'+badge+escapeHtml(p.kategorie)+'</div>';
+  if (p.adresse) html += '<div class="meta">'+escapeHtml(p.adresse)+'</div>';
+  if (p.website) html += '<div class="meta"><a href="'+p.website+'" target="_blank" rel="noopener">Webseite</a></div>';
+  new maplibregl.Popup({offset:14, closeButton:true})
+    .setLngLat(f.geometry.coordinates)
+    .setHTML(html)
+    .addTo(map);
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
 </script>
 </body>
 </html>
