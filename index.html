@@ -196,13 +196,46 @@ const map = new maplibregl.Map({
   zoom:15.5, pitch:55, bearing:-25, maxPitch:80, antialias:true,
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
-map.addControl(new maplibregl.GeolocateControl({
+
+// 3D-Knopf: stellt Pitch und Bearing wieder her
+class Pitch3DControl {
+  onAdd(m){ this._map=m;
+    const c=document.createElement('div'); c.className='maplibregl-ctrl maplibregl-ctrl-group';
+    const b=document.createElement('button'); b.type='button'; b.title='3D-Ansicht'; b.setAttribute('aria-label','3D-Ansicht');
+    b.style.fontWeight='700'; b.style.fontSize='11px'; b.textContent='3D';
+    b.onclick=()=>{ m.easeTo({pitch:55, bearing:-25, duration:600}); };
+    c.appendChild(b); this._container=c; return c;
+  }
+  onRemove(){ this._container.parentNode.removeChild(this._container); this._map=undefined; }
+}
+map.addControl(new Pitch3DControl(), 'top-right');
+
+const geolocate = new maplibregl.GeolocateControl({
   positionOptions: { enableHighAccuracy: true, timeout: 10000 },
   fitBoundsOptions: { maxZoom: 17, pitch: 55, bearing: -25 },
   trackUserLocation: false,
   showUserLocation: true,
   showAccuracyCircle: true,
-}), 'top-right');
+});
+map.addControl(geolocate, 'top-right');
+
+// Hinweis bei Fehler (Erlaubnis verweigert, Timeout, kein Signal)
+function showGeoHint(text){
+  let el=document.getElementById('geo-hint');
+  if(!el){ el=document.createElement('div'); el.id='geo-hint';
+    el.style.cssText='position:absolute;top:10px;right:50px;z-index:20;background:#fff5e6;border:1px solid #f0a500;color:#5c3a00;padding:6px 10px;border-radius:6px;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.15);max-width:260px;';
+    document.body.appendChild(el);
+  }
+  el.textContent=text;
+  clearTimeout(el._t); el._t=setTimeout(()=>{ el.remove(); }, 6000);
+}
+geolocate.on('error', e => {
+  if(e && e.code===1) showGeoHint('Standort blockiert. Bitte im Browser (Schloss-Symbol links neben der URL) erlauben.');
+  else if(e && e.code===2) showGeoHint('Standort nicht verfügbar.');
+  else if(e && e.code===3) showGeoHint('Zeitüberschreitung beim Orten. Bitte nochmal versuchen.');
+  else showGeoHint('Standort konnte nicht ermittelt werden.');
+});
+geolocate.on('outofmaxbounds', () => showGeoHint('Du bist außerhalb des Karten-Bereichs.'));
 
 // ---------- three.js LoD2-Layer (Gebäude) ----------
 const buildingsLayer = {
