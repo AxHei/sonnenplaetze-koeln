@@ -196,6 +196,13 @@ const map = new maplibregl.Map({
   zoom:15.5, pitch:55, bearing:-25, maxPitch:80, antialias:true,
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
+map.addControl(new maplibregl.GeolocateControl({
+  positionOptions: { enableHighAccuracy: true, timeout: 10000 },
+  fitBoundsOptions: { maxZoom: 17, pitch: 55, bearing: -25 },
+  trackUserLocation: false,
+  showUserLocation: true,
+  showAccuracyCircle: true,
+}), 'top-right');
 
 // ---------- three.js LoD2-Layer (Gebäude) ----------
 const buildingsLayer = {
