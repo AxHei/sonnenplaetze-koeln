@@ -9,13 +9,20 @@
   body { margin:0; padding:0; font-family:system-ui,sans-serif; }
   #map { position:absolute; top:0; bottom:90px; left:0; right:0; }
   #info {
-    position:absolute; top:10px; left:10px; z-index:10;
+    position:absolute; top:8px; left:8px; z-index:10;
     background:rgba(255,255,255,0.94); padding:8px 12px; border-radius:8px;
     box-shadow:0 2px 8px rgba(0,0,0,0.15); max-width:300px; font-size:12px;
+    box-sizing:border-box;
   }
   #info h1 { margin:0 0 4px 0; font-size:14px; color:#1F3A5F; }
   #info p { margin:2px 0; color:#444; }
   #info .stat { color:#2E5C8A; font-weight:600; }
+  /* iPhone & schmale Bildschirme: Info-Box kompakter, nimmt Platz neben den Karten-Knöpfen rechts in Anspruch */
+  @media (max-width: 600px) {
+    #info { max-width: calc(100vw - 70px); padding:6px 10px; font-size:11px; }
+    #info h1 { font-size:12px; margin:0 0 2px 0; }
+    #info .hint { display:none; }
+  }
   #legend {
     position:absolute; bottom:100px; left:10px; z-index:10;
     background:rgba(255,255,255,0.94); padding:8px 10px; border-radius:8px;
@@ -56,7 +63,7 @@
 <div id="info">
   <h1>Sonnenplätze Köln · Deutz</h1>
   <p><span class="stat" id="status">…</span></p>
-  <p style="font-size:10px;color:#888;margin-top:4px;">Maus = drehen / zoomen. Klick auf Punkt = Details.</p>
+  <p class="hint" style="font-size:10px;color:#888;margin-top:4px;">Maus = drehen / zoomen. Klick auf Punkt = Details.</p>
 </div>
 <div id="legend">
   <div class="row"><span class="dot" style="background:#f0a500;"></span> Sonne</div>
