@@ -17,11 +17,19 @@
   #info h1 { margin:0 0 4px 0; font-size:14px; color:#1F3A5F; }
   #info p { margin:2px 0; color:#444; }
   #info .stat { color:#2E5C8A; font-weight:600; }
-  /* iPhone & schmale Bildschirme: Info-Box kompakter, nimmt Platz neben den Karten-Knöpfen rechts in Anspruch */
+  /* iPhone & schmale Bildschirme: Info-Box kompakter, Safe-Area-Inset für Notch berücksichtigen */
   @media (max-width: 600px) {
-    #info { max-width: calc(100vw - 70px); padding:6px 10px; font-size:11px; }
+    #info {
+      left: calc(env(safe-area-inset-left, 0px) + 8px);
+      top: calc(env(safe-area-inset-top, 0px) + 8px);
+      max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 70px);
+      padding:6px 10px; font-size:11px;
+    }
     #info h1 { font-size:12px; margin:0 0 2px 0; }
     #info .hint { display:none; }
+    #legend {
+      left: calc(env(safe-area-inset-left, 0px) + 8px);
+    }
   }
   #legend {
     position:absolute; bottom:100px; left:10px; z-index:10;
@@ -68,6 +76,7 @@
 <div id="legend">
   <div class="row"><span class="dot" style="background:#f0a500;"></span> Sonne</div>
   <div class="row"><span class="dot" style="background:#666;"></span> Schatten</div>
+  <div class="row"><span class="dot" style="background:#bbb;opacity:0.55;"></span> Linksrheinisch (folgt)</div>
   <div class="row" style="margin-top:4px;font-size:10px;color:#888;">Kreisrand: dick = bestätigt, dünn = vermutet</div>
 </div>
 <div id="control">
@@ -148,9 +157,13 @@ const trees = baeumeFC.features.map(f => {
 });
 
 // ---------- Lokale vorbereiten ----------
+// Linksrheinische Lokale (Lon < 6.965 ≈ Rheinmitte in Deutz-Höhe) liegen außerhalb
+// unseres Geometrie-Modells (keine LoD2-Gebäude, keine Bäume). Schattentest dort nicht möglich.
+const RHEIN_LON = 6.965;
 for (const f of lokaleFC.features) {
   const m = lonlatToM(f.geometry.coordinates[0], f.geometry.coordinates[1]);
   f._mx = m.x; f._my = m.y;
+  f.properties.linksrheinisch = f.geometry.coordinates[0] < RHEIN_LON;
 }
 
 // ---------- Schattentest ----------
@@ -344,7 +357,13 @@ map.on('style.load', () => {
     source: 'lokale',
     paint: {
       'circle-radius': ['case', ['get','bestaetigt'], 8, 5],
-      'circle-color': ['case', ['get','imSchatten'], '#666666', '#f0a500'],
+      'circle-color': [
+        'case',
+        ['get','linksrheinisch'], '#bbbbbb',
+        ['get','imSchatten'], '#666666',
+        '#f0a500'
+      ],
+      'circle-opacity': ['case', ['get','linksrheinisch'], 0.55, 1.0],
       'circle-stroke-color': ['case', ['get','bestaetigt'], '#1f3a5f', '#a89a5e'],
       'circle-stroke-width': ['case', ['get','bestaetigt'], 2, 1],
     }
@@ -359,15 +378,19 @@ map.on('style.load', () => {
 function showPopup(e) {
   const f = e.features[0];
   const p = f.properties;
-  const sun = p.imSchatten === 'true' || p.imSchatten === true
-    ? '<span class="badge schatten">Schatten</span>'
-    : '<span class="badge sonne">Sonne</span>';
+  const linksrh = p.linksrheinisch === 'true' || p.linksrheinisch === true;
+  const sun = linksrh
+    ? '<span class="badge" style="background:#bbb;color:#fff;">Schatten folgt später</span>'
+    : (p.imSchatten === 'true' || p.imSchatten === true
+        ? '<span class="badge schatten">Schatten</span>'
+        : '<span class="badge sonne">Sonne</span>');
   const conf = p.bestaetigt === 'true' || p.bestaetigt === true
     ? '<span class="badge bestaetigt">Außenbereich bestätigt</span>'
     : '<span class="badge vermutet">Außenbereich vermutet</span>';
   let html = '<h3>'+esc(p.name)+'</h3>'+
              '<div>'+sun+conf+'</div>'+
              '<div class="meta">'+esc(p.kategorie)+'</div>';
+  if (linksrh) html += '<div class="meta" style="color:#888;font-style:italic;">Linksrheinisch — Sonne/Schatten in nächster Ausbaustufe</div>';
   if (p.adresse) html += '<div class="meta">'+esc(p.adresse)+'</div>';
   if (p.website && p.website !== 'null') html += '<div class="meta"><a href="'+p.website+'" target="_blank" rel="noopener">Webseite</a></div>';
   new maplibregl.Popup({offset:14, closeButton:true})
@@ -440,8 +463,13 @@ function updateLokale() {
     sunbar.textContent = '☀ Az ' + azDeg.toFixed(0) + '° / Höhe ' + altDeg.toFixed(0) + '°';
   }
   // Pro Lokal Schatten testen und property setzen
+  // Linksrheinische überspringen — kein Geometrie-Modell vorhanden
   for (const f of lokaleFC.features) {
-    f.properties.imSchatten = isInShadow(f, sun.azimuth, sun.altitude);
+    if (f.properties.linksrheinisch) {
+      f.properties.imSchatten = null;
+    } else {
+      f.properties.imSchatten = isInShadow(f, sun.azimuth, sun.altitude);
+    }
   }
   if (map.getSource('lokale')) {
     map.getSource('lokale').setData(lokaleFC);
